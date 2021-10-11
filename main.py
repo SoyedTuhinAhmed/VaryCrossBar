@@ -1,7 +1,6 @@
-import torch
 import argparse
-import torch.optim as optim
 from torchvision import datasets, transforms
+from model import *
 
 
 def load_data(transforms, dataset, batch_size, test_kwargs):
@@ -60,6 +59,15 @@ def main():
                        'pin_memory': True,
                        'shuffle': False}
         test_kwargs.update(cuda_kwargs)
+    load_data(transforms, 'mnist', args.batch_size, device)
+    model = MLP().to(device)
+    criterion = nn.CrossEntropyLoss()
+
+    simulate(model, args.path, criterion)
+
+
+def simulate(model, path, criterion):
+    pass
 
 
 if __name__ == '__main__':
