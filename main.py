@@ -66,8 +66,20 @@ def main():
     simulate(model, args.path, criterion)
 
 
-def simulate(model, path, criterion):
-    pass
+def simulate_SA_faults(model, path, criterion):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    print('Best acc ', checkpoint['test_accuracy'])  # assumes model saves checkpoint accuracy
+
+    print("Evaluating Stuck-At Faults:---------------------------")
+    test_runs, best_acc = 100, 0
+    fi = StuckAtFaults()  # define fault injection class
+
+    for percent in range(5, 20, 5):
+        print('Percentage of SA both faults: ', percent, '\n')
+        test_accs = []
+        for test_run in range(test_runs):
+            pass
 
 
 if __name__ == '__main__':
