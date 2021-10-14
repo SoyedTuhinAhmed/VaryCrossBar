@@ -1,6 +1,7 @@
 import argparse
 from torchvision import datasets, transforms
 from model import *
+from stuck_at_faults import *
 
 
 def load_data(transforms, dataset, batch_size, test_kwargs):
@@ -21,11 +22,8 @@ def test(model, criterion, test_loader, device):
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
-    test_loss /= len(test_loader.dataset)
-
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+    accuracy = 100. * correct / len(test_loader.dataset)
+    return accuracy
 
 
 def main():
@@ -63,23 +61,41 @@ def main():
     model = MLP().to(device)
     criterion = nn.CrossEntropyLoss()
 
-    simulate(model, args.path, criterion)
+    simulate_SA_faults(model, args.path, criterion)
 
 
-def simulate_SA_faults(model, path, criterion):
+def simulate_SA_faults(model, path, N, criterion):
+    """ Load the model"""
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint['model_state_dict'])
     print('Best acc ', checkpoint['test_accuracy'])  # assumes model saves checkpoint accuracy
 
     print("Evaluating Stuck-At Faults:---------------------------")
-    test_runs, best_acc = 100, 0
+    test_runs, best_acc = N, 0  # define test runs
     fi = StuckAtFaults()  # define fault injection class
+    start_percent = 5
+    end_percent = 20
 
-    for percent in range(5, 20, 5):
+    for percent in range(start_percent, end_percent, 5):
         print('Percentage of SA both faults: ', percent, '\n')
         test_accs = []
         for test_run in range(test_runs):
-            pass
+            model = fi.FI_SA_Both(percent, model, first=True)
+
+            bn_stat_calibrate(model)
+
+            test_acc = test(model, criterion)
+            test_accs.append(test_acc)
+            if best_acc < test_acc:
+                print('---------------------- best acc updated--------------------')
+                best_acc = test_acc
+            print("Epochs {} Test accuracy: {:.4f} Best accuracy: {:.4f} -----------".format(test_run, test_acc,
+                                                                                             best_acc))
+            model.load_state_dict(checkpoint['model_state_dict'])
+
+        mean_acc = np.round(np.mean(test_accs), 3)
+        std_acc = np.round(np.std(test_accs), 3)
+        print('percent ', percent, ' mean acc ', mean_acc, ' deviation ', std_acc)
 
 
 if __name__ == '__main__':
